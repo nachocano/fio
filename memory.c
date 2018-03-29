@@ -15,8 +15,9 @@ void fio_unpin_memory(struct thread_data *td)
 {
 	if (td->pinned_mem) {
 		dprint(FD_MEM, "unpinning %llu bytes\n", td->o.lockmem);
-		if (munlock(td->pinned_mem, td->o.lockmem) < 0)
-			perror("munlock");
+		// if (munlock(td->pinned_mem, td->o.lockmem) < 0)
+		// 	perror("munlock");
+		log_info("fio: not munlocking memory\n");
 		munmap(td->pinned_mem, td->o.lockmem);
 		td->pinned_mem = NULL;
 	}
@@ -35,14 +36,14 @@ int fio_pin_memory(struct thread_data *td)
 	 * Don't allow mlock of more than real_mem-128MiB
 	 */
 	phys_mem = os_phys_mem();
-	if (phys_mem) {
-		if ((td->o.lockmem + 128 * 1024 * 1024) > phys_mem) {
-			td->o.lockmem = phys_mem - 128 * 1024 * 1024;
-			log_info("fio: limiting mlocked memory to %lluMiB\n",
-							td->o.lockmem >> 20);
-		}
-	}
-
+	// if (phys_mem) {
+	// 	if ((td->o.lockmem + 128 * 1024 * 1024) > phys_mem) {
+	// 		td->o.lockmem = phys_mem - 128 * 1024 * 1024;
+	// 		log_info("fio: limiting mlocked memory to %lluMiB\n",
+	// 						td->o.lockmem >> 20);
+	// 	}
+	// }
+	log_info("fio: not limiting mlocked memory to %lluMiB\n", (phys_mem - 128 * 1024 * 1024) >> 20);
 	td->pinned_mem = mmap(NULL, td->o.lockmem, PROT_READ | PROT_WRITE,
 				MAP_PRIVATE | OS_MAP_ANON, -1, 0);
 	if (td->pinned_mem == MAP_FAILED) {
@@ -50,12 +51,13 @@ int fio_pin_memory(struct thread_data *td)
 		td->pinned_mem = NULL;
 		return 1;
 	}
-	if (mlock(td->pinned_mem, td->o.lockmem) < 0) {
-		perror("mlock");
-		munmap(td->pinned_mem, td->o.lockmem);
-		td->pinned_mem = NULL;
-		return 1;
-	}
+	log_info("fio: not mlocking memory");
+	// if (mlock(td->pinned_mem, td->o.lockmem) < 0) {
+	// 	perror("mlock");
+	// 	munmap(td->pinned_mem, td->o.lockmem);
+	// 	td->pinned_mem = NULL;
+	// 	return 1;
+	// }
 
 	return 0;
 }
