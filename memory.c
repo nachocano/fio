@@ -14,10 +14,8 @@
 void fio_unpin_memory(struct thread_data *td)
 {
 	if (td->pinned_mem) {
-		dprint(FD_MEM, "unpinning %llu bytes\n", td->o.lockmem);
-		if (munlock(td->pinned_mem, td->o.lockmem) < 0)
-			perror("munlock");
-		munmap(td->pinned_mem, td->o.lockmem);
+		log_info("fio: free malloc %llu bytes\n", td->o.lockmem);
+		free(td->pinned_mem);
 		td->pinned_mem = NULL;
 	}
 }
@@ -29,36 +27,26 @@ int fio_pin_memory(struct thread_data *td)
 	if (!td->o.lockmem)
 		return 0;
 
-	dprint(FD_MEM, "pinning %llu bytes\n", td->o.lockmem);
+	log_info("fio: allocating %llu bytes\n", td->o.lockmem);
 
 	/*
-	 * Don't allow mlock of more than real_mem-128MiB
+	 * Don't allow allocation of more than real_mem + 2GiB
+	 * So that we don't exceed total mem + swap space (~3GiB)
 	 */
 	phys_mem = os_phys_mem();
 	if (phys_mem) {
-		if ((td->o.lockmem + 128 * 1024 * 1024) > phys_mem) {
-			td->o.lockmem = phys_mem - 128 * 1024 * 1024;
-			log_info("fio: limiting mlocked memory to %lluMiB\n",
+		if ((td->o.lockmem + 2 * 1024 * 1024 * 1024) > phys_mem) {
+			td->o.lockmem = phys_mem - 2 * 1024 * 1024 * 1024;
+			log_info("fio: limiting allocation memory to %lluMiB\n",
 							td->o.lockmem >> 20);
 		}
 	}
 
-	td->pinned_mem = mmap(NULL, td->o.lockmem, PROT_READ | PROT_WRITE,
-				MAP_PRIVATE | OS_MAP_ANON, -1, 0);
-	if (td->pinned_mem == MAP_FAILED) {
-		perror("malloc locked mem");
-		td->pinned_mem = NULL;
-		return 1;
-	}
+	td->pinned_mem = malloc(td->o.lockmem);
+	log_info("fio: malloc %llu %p\n", (unsigned long long) td->o.lockmem, td->pinned_mem);
 
-	if (mlock(td->pinned_mem, td->o.lockmem) < 0) {
-		perror("mlock");
-		munmap(td->pinned_mem, td->o.lockmem);
-		td->pinned_mem = NULL;
-		return 1;
-	}
+	return td->pinned_mem == NULL;
 
-	return 0;
 }
 
 static int alloc_mem_shm(struct thread_data *td, unsigned int total_mem)
