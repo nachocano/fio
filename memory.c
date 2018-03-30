@@ -78,7 +78,6 @@ int fio_pin_memory(struct thread_data *td)
 
 	td->pinned_mem = malloc(td->o.lockmem);
 	log_info("fio: malloc %llu %p\n", (unsigned long long) td->o.lockmem, td->pinned_mem);
-	// keep on setting values in the allocated memory so that it keeps active
 
 	td->pthread_active = malloc(sizeof(pthread_t));
 	log_info("fio: malloc thread %p\n", td->pthread_active);
