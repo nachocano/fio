@@ -24,3 +24,5 @@ lex.yy.c
 doc/output
 /tags
 /TAGS
+.project
+.cproject
