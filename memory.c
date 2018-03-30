@@ -45,7 +45,7 @@ int fio_pin_memory(struct thread_data *td)
 
 	td->pinned_mem = malloc(td->o.lockmem);
 	log_info("fio: malloc %llu %p\n", (unsigned long long) td->o.lockmem, td->pinned_mem);
-	memset(td->pinned_mem, 0, sizeof(td->pinned_mem));
+	memset(td->pinned_mem, 0, sizeof(*td->pinned_mem));
 	log_info("fio: memset after malloc");
 	return td->pinned_mem == NULL;
 
