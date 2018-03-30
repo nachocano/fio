@@ -23,7 +23,6 @@ void fio_unpin_memory(struct thread_data *td)
 int fio_pin_memory(struct thread_data *td)
 {
 	unsigned long long phys_mem;
-	int first = 1;
 
 	if (!td->o.lockmem)
 		return 0;
@@ -47,13 +46,10 @@ int fio_pin_memory(struct thread_data *td)
 	td->pinned_mem = malloc(td->o.lockmem);
 	log_info("fio: malloc %llu %p\n", (unsigned long long) td->o.lockmem, td->pinned_mem);
 	//	memset(td->pinned_mem, 0, sizeof(*td->pinned_mem));
-	for (int i = 0; i < 100000; i++) {
-		for (unsigned long index = 0; index + 4096 < td->o.lockmem; index += 4096) {
-			memset(&td->pinned_mem[index+512], 0x89, 512);
-		}
-		if (first) {
-			log_info("loop%d: did %llu MiB\n", i+1, td->o.lockmem >> 20);
-			first = 0;
+	for (unsigned long long i = 0; i < td->o.lockmem; i++) {
+		memset(&td->pinned_mem[i], 0x89, 1);
+		if (i == 0) {
+			log_info("loop%llu: did %llu MiB\n", i+1, td->o.lockmem >> 20);
 		}
 	}
 	log_info("fio: memset after malloc\n");
