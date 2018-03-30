@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <pthread.h>
 
 #include "fio.h"
 #ifndef FIO_NO_HAVE_SHM_H
@@ -14,10 +15,34 @@
 void fio_unpin_memory(struct thread_data *td)
 {
 	if (td->pinned_mem) {
+		log_info("fio: terminating active set");
+		td->terminate_active = true;
+		void *ret;
+		pthread_join(*td->pthread_active, &ret);
+		td->pthread_active = NULL;
 		log_info("fio: free malloc %llu bytes\n", td->o.lockmem);
 		free(td->pinned_mem);
 		td->pinned_mem = NULL;
 	}
+}
+
+static void *active_worker(void *data)
+{
+	struct thread_data *td = data;
+	bool first = true;
+	log_info("fio: keeping working set active");
+	while (!td->terminate_active) {
+		for (unsigned long long index = 0; index + 4096 < td->o.lockmem; index += 4096) {
+			memset(&td->pinned_mem[index+512], 0x89, 512);
+		}
+		if (first) {
+			log_info("fio: active worker loop %llu MiB\n", td->o.lockmem/(1024UL*1024UL));
+			first = false;
+		}
+		usleep(5000000); // 5 seconds
+	}
+	log_info("fio: terminated active\n");
+	return NULL;
 }
 
 int fio_pin_memory(struct thread_data *td)
@@ -30,12 +55,12 @@ int fio_pin_memory(struct thread_data *td)
 	log_info("fio: allocating %llu bytes\n", td->o.lockmem);
 
 	/*
-	 * Don't allow allocation of more than real_mem + 2GiB
+	 * Don't allow allocation of more than real_mem + 1.5GiB
 	 * So that we don't exceed total mem + swap space (~3GiB)
 	 */
 	phys_mem = os_phys_mem();
 	if (phys_mem) {
-		unsigned long long excess = 2048 * 1024ULL * 1024ULL;
+		unsigned long long excess = 1536 * 1024ULL * 1024ULL;
 		if (td->o.lockmem > phys_mem + excess) {
 			td->o.lockmem = phys_mem + excess;
 			log_info("fio: limiting allocation memory to %lluMiB\n",
@@ -45,16 +70,14 @@ int fio_pin_memory(struct thread_data *td)
 
 	td->pinned_mem = malloc(td->o.lockmem);
 	log_info("fio: malloc %llu %p\n", (unsigned long long) td->o.lockmem, td->pinned_mem);
-	//	memset(td->pinned_mem, 0, sizeof(*td->pinned_mem));
-	for (unsigned long long i = 0; i < td->o.lockmem; i++) {
-		memset(&td->pinned_mem[i], 0x89, 1);
-		if (i == 0) {
-			log_info("loop%llu: did %llu MiB\n", i+1, td->o.lockmem >> 20);
-		}
-	}
-	log_info("fio: memset after malloc\n");
-	return td->pinned_mem == NULL;
+	// keep on setting values in the allocated memory so that it keeps active
+
+	td->pthread_active = calloc(1, sizeof(pthread_t));
+	pthread_create(td->pthread_active, NULL, active_worker, &td);
+
+	return td->pinned_mem == NULL && td->pthread_active == NULL;
 }
+
 
 static int alloc_mem_shm(struct thread_data *td, unsigned int total_mem)
 {

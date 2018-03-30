@@ -436,6 +436,8 @@ struct thread_data {
 	void *prof_data;
 
 	char *pinned_mem;
+	volatile bool terminate_active;
+	pthread_t *pthread_active;
 
 	struct steadystate_data ss;
 
