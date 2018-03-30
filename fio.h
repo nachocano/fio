@@ -435,7 +435,7 @@ struct thread_data {
 	struct prof_io_ops prof_io_ops;
 	void *prof_data;
 
-	char *pinned_mem;
+	void *pinned_mem;
 
 	struct steadystate_data ss;
 
