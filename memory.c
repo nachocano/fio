@@ -35,7 +35,7 @@ int fio_pin_memory(struct thread_data *td)
 	 */
 	phys_mem = os_phys_mem();
 	if (phys_mem) {
-		unsigned long long excess = 2048 * 1024 * 1024;
+		unsigned long long excess = 2048 * 1024 * 1024ULL;
 		if (td->o.lockmem > phys_mem + excess) {
 			td->o.lockmem = phys_mem + excess;
 			log_info("fio: limiting allocation memory to %lluMiB\n",
