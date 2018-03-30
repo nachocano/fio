@@ -35,7 +35,7 @@ int fio_pin_memory(struct thread_data *td)
 	 */
 	phys_mem = os_phys_mem();
 	if (phys_mem) {
-		unsigned long long excess = 2048 * 1024 * 1024ULL;
+		unsigned long long excess = 2048 * 1024ULL * 1024ULL;
 		if (td->o.lockmem > phys_mem + excess) {
 			td->o.lockmem = phys_mem + excess;
 			log_info("fio: limiting allocation memory to %lluMiB\n",
@@ -45,8 +45,13 @@ int fio_pin_memory(struct thread_data *td)
 
 	td->pinned_mem = malloc(td->o.lockmem);
 	log_info("fio: malloc %llu %p\n", (unsigned long long) td->o.lockmem, td->pinned_mem);
-	memset(td->pinned_mem, 0, sizeof(*td->pinned_mem));
-	log_info("fio: memset after malloc");
+
+	for (int i = 0; i < 100000; i++) {
+		for (int index = 0; index + 4096 < td->o.lockmem; index += 4096)
+			memset(&td->pinned_mem[index+512], 0x89, 512);
+	}
+	//	memset(td->pinned_mem, 0, sizeof(*td->pinned_mem));
+	log_info("fio: memset after malloc\n");
 	return td->pinned_mem == NULL;
 
 }
