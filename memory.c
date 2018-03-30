@@ -28,7 +28,7 @@ void fio_unpin_memory(struct thread_data *td)
 }
 
 static void *active_worker(void *data)
-{       int i;
+{   int i;
 	struct thread_data *td = data;
 	bool first = true;
 	log_info("fio: keeping working set active, thread_data %p\n", td);
@@ -36,14 +36,14 @@ static void *active_worker(void *data)
 		i = 0;
 		for (unsigned long long index = 0; index + 4096 < td->o.lockmem; index += 4096) {
 			if (i % 10 == 0) {
-			    if (td->terminate_active) {
-				log_info("fio: terminating active worker\n");
-				break;
+				if (td->terminate_active) {
+					log_info("fio: terminating active worker\n");
+					break;
 			    }
 			}
 			memset(&td->pinned_mem[index+512], 0x89, 512);
 		}
-	        if (first) {
+		if (first) {
 			log_info("fio: active worker loop %llu MiB\n", td->o.lockmem/(1024UL*1024UL));
 			first = false;
 		}
