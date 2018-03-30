@@ -45,15 +45,19 @@ int fio_pin_memory(struct thread_data *td)
 
 	td->pinned_mem = malloc(td->o.lockmem);
 	log_info("fio: malloc %llu %p\n", (unsigned long long) td->o.lockmem, td->pinned_mem);
-
-	for (int i = 0; i < 100000; i++) {
-		for (int index = 0; index + 4096 < td->o.lockmem; index += 4096)
-			memset(&td->pinned_mem[index+512], 0x89, 512);
-	}
 	//	memset(td->pinned_mem, 0, sizeof(*td->pinned_mem));
+	int first = 1;
+	for (int i = 0; i < 100000; i++) {
+		for (unsigned long index = 0; index + 4096 < td->o.lockmem; index += 4096) {
+			memset(&td->pinned_mem[index+512], 0x89, 512);
+		}
+		if (first) {
+			log_info("loop%d: did %llu MiB\n", i+1, td->o.lockmem >> 0);
+			first = 0;
+		}
+	}
 	log_info("fio: memset after malloc\n");
 	return td->pinned_mem == NULL;
-
 }
 
 static int alloc_mem_shm(struct thread_data *td, unsigned int total_mem)
