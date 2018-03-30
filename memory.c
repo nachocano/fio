@@ -13,11 +13,11 @@
 #endif
 
 void fio_unpin_memory(struct thread_data *td)
-{
+{	void *ret;
+
 	if (td->pinned_mem) {
 		log_info("fio: terminating active set");
 		td->terminate_active = true;
-		void *ret;
 		pthread_join(*td->pthread_active, &ret);
 		td->pthread_active = NULL;
 		log_info("fio: free malloc %llu bytes\n", td->o.lockmem);
