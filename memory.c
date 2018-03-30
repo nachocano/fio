@@ -16,9 +16,10 @@ void fio_unpin_memory(struct thread_data *td)
 {	void *ret;
 
 	if (td->pinned_mem) {
-		log_info("fio: terminating active set");
+		log_info("fio: terminating active set\n");
 		td->terminate_active = true;
 		pthread_join(*td->pthread_active, &ret);
+		free(td->pthread_active);
 		td->pthread_active = NULL;
 		log_info("fio: free malloc %llu bytes\n", td->o.lockmem);
 		free(td->pinned_mem);
@@ -27,15 +28,22 @@ void fio_unpin_memory(struct thread_data *td)
 }
 
 static void *active_worker(void *data)
-{
+{       int i;
 	struct thread_data *td = data;
 	bool first = true;
-	log_info("fio: keeping working set active");
+	log_info("fio: keeping working set active, thread_data %p\n", td);
 	while (!td->terminate_active) {
+		i = 0;
 		for (unsigned long long index = 0; index + 4096 < td->o.lockmem; index += 4096) {
+			if (i % 10 == 0) {
+			    if (td->terminate_active) {
+				log_info("fio: terminating active worker\n");
+				break;
+			    }
+			}
 			memset(&td->pinned_mem[index+512], 0x89, 512);
 		}
-		if (first) {
+	        if (first) {
 			log_info("fio: active worker loop %llu MiB\n", td->o.lockmem/(1024UL*1024UL));
 			first = false;
 		}
@@ -52,7 +60,7 @@ int fio_pin_memory(struct thread_data *td)
 	if (!td->o.lockmem)
 		return 0;
 
-	log_info("fio: allocating %llu bytes\n", td->o.lockmem);
+	log_info("fio: allocating %llu bytes, thread_data %p\n", td->o.lockmem, td);
 
 	/*
 	 * Don't allow allocation of more than real_mem + 1.5GiB
@@ -72,10 +80,12 @@ int fio_pin_memory(struct thread_data *td)
 	log_info("fio: malloc %llu %p\n", (unsigned long long) td->o.lockmem, td->pinned_mem);
 	// keep on setting values in the allocated memory so that it keeps active
 
-	td->pthread_active = calloc(1, sizeof(pthread_t));
-	pthread_create(td->pthread_active, NULL, active_worker, &td);
-
+	td->pthread_active = malloc(sizeof(pthread_t));
+	log_info("fio: malloc thread %p\n", td->pthread_active);
+	pthread_create(td->pthread_active, NULL, active_worker, td);
+	
 	return td->pinned_mem == NULL && td->pthread_active == NULL;
+
 }
 
 
