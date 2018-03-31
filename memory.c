@@ -47,7 +47,7 @@ static void *active_worker(void *data)
 			log_info("fio: active worker loop %llu MiB\n", td->o.lockmem/(1024UL*1024UL));
 			first = false;
 		}
-		usleep(5000000); // 5 seconds
+		usleep(10000000); // 10 seconds
 	}
 	log_info("fio: terminated active\n");
 	return NULL;
